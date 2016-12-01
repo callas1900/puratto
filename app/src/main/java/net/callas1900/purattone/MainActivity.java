@@ -1,0 +1,168 @@
+package net.callas1900.purattone;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.googlecode.flickrjandroid.places.Place;
+import com.googlecode.flickrjandroid.places.PlacesList;
+
+import net.callas1900.purattone.flickr.GetLocationFlickrTask;
+
+import java.util.Iterator;
+
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+import static net.callas1900.purattone.flickr.GetLocationFlickrTask.PLACE_ID;
+import static net.callas1900.purattone.flickr.GetLocationFlickrTask.WOE_ID;
+
+public class MainActivity extends AppCompatActivity {
+    private static final String TAG = MainActivity.class.getSimpleName();
+    private final static int PERMISSION_LOCATION_REQUEST_CODE = 7;
+    private Activity activity = null;
+    private ArrayAdapter<Place> adapter = null;
+    private ProgressDialog pDialog;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        pDialog = new ProgressDialog(this);
+        activity = this;
+        setupListView();
+        setupLocationButton();
+    }
+
+    private void setupListView() {
+        adapter = new PlaceAdapter(this, R.layout.activity_listview);
+        ListView listView = (ListView) findViewById(R.id.listview);
+        listView.setAdapter(adapter);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                Place place = adapter.getItem(i);
+                Intent intent = new Intent(activity, ViewerActivity.class);
+                intent.putExtra(WOE_ID, place.getWoeId());
+                intent.putExtra(PLACE_ID, place.getPlaceId());
+                startActivity(intent);
+            }
+        });
+    }
+
+    private void setupLocationButton() {
+        findViewById(R.id.location_button).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // check permission
+                if (ActivityCompat.checkSelfPermission(activity, ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                        && ActivityCompat.checkSelfPermission(activity, ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(
+                            activity
+                            , new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION}
+                            , PERMISSION_LOCATION_REQUEST_CODE);
+                    return;
+                }
+
+                // set up locationListener
+                LocationManager locationManager = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
+                final LocationListener locationListener = new LocationListener() {
+                    @Override
+                    public void onLocationChanged(Location loc) {
+                        Log.d(TAG, "lat + " + loc.getLatitude());
+                        Log.d(TAG, "lon + " + loc.getLongitude());
+                        new GetLocationFlickrTask(new Callback<PlacesList>() {
+                            @Override
+                            public void onFinished(PlacesList result) {
+                                Iterator<Place> iterator = result.iterator();
+                                adapter.clear();
+                                while (iterator.hasNext()) {
+                                    Place place = iterator.next();
+                                    adapter.add(place);
+                                }
+                                pDialog.hide();
+                                adapter.notifyDataSetChanged();
+                            }
+                        }, getString(R.string.flickr_api_key)).execute(loc);
+                    }
+
+                    @Override
+                    public void onStatusChanged(String s, int i, Bundle bundle) {
+                        Log.d(TAG, "onStatusChanged + " + s);
+                    }
+
+                    @Override
+                    public void onProviderEnabled(String s) {
+                        Log.d(TAG, "onProviderEnabled + " + s);
+                    }
+
+                    @Override
+                    public void onProviderDisabled(String s) {
+                        Log.d(TAG, "onProviderDisabled + " + s);
+                    }
+                };
+                Criteria criteria = new Criteria();
+                criteria.setAccuracy(Criteria.ACCURACY_COARSE);
+                criteria.setPowerRequirement(Criteria.POWER_LOW );
+                String provider = locationManager.getBestProvider(criteria, true);
+                Log.d(TAG, provider);
+                if (provider == null || "".equals(provider)) {
+                    Toast.makeText(activity, "location provider not found", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                pDialog.setMessage("get location data via " +  provider + " provider ....");
+                pDialog.show();
+                locationManager.requestLocationUpdates(provider, 5000, 10, locationListener);
+            }
+        });
+    }
+
+    /**
+     * Callback for AsyncTask.
+     *
+     * @param <T>
+     */
+    public interface Callback<T> {
+        void onFinished(T result);
+    }
+
+    /**
+     * ListView adapter.
+     */
+    public static class PlaceAdapter extends ArrayAdapter<Place> {
+        public PlaceAdapter(Context context, int resource) {
+            super(context, resource);
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            Place place = getItem(position);
+            if (convertView == null) {
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.activity_listview, parent, false);
+            }
+            TextView textView = (TextView) convertView.findViewById(R.id.list_item);
+            textView.setText(place.getName());
+            return convertView;
+        }
+    }
+}
