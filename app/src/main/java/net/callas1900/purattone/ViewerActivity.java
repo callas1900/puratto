@@ -1,6 +1,9 @@
 package net.callas1900.purattone;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
@@ -31,11 +34,13 @@ public class ViewerActivity extends AppCompatActivity {
     private ProgressDialog pDialog;
     private GalleryAdapter mAdapter;
     private RecyclerView recyclerView;
+    private Activity activity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.glide_activity_main);
+        activity = this;
 
         recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
 
@@ -51,14 +56,24 @@ public class ViewerActivity extends AppCompatActivity {
         recyclerView.addOnItemTouchListener(new GalleryAdapter.RecyclerTouchListener(getApplicationContext(), recyclerView, new GalleryAdapter.ClickListener() {
             @Override
             public void onClick(View view, int position) {
-                Bundle bundle = new Bundle();
-                bundle.putSerializable("images", images);
-                bundle.putInt("position", position);
-
-                FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
-                SlideshowDialogFragment newFragment = SlideshowDialogFragment.newInstance();
-                newFragment.setArguments(bundle);
-                newFragment.show(ft, "slideshow");
+//                Bundle bundle = new Bundle();
+//                bundle.putSerializable("images", images);
+//                bundle.putInt("position", position);
+//
+//                FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+//                SlideshowDialogFragment newFragment = SlideshowDialogFragment.newInstance();
+//                newFragment.setArguments(bundle);
+//                newFragment.show(ft, "slideshow");
+                Image image = images.get(position);
+                if (image.hasGeoData()) {
+                    Log.d(TAG, image.getGeoData());
+                    Uri gmmIntentUri = Uri.parse(image.getGeoData() + "(test)");
+                    Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+                    mapIntent.setPackage("com.google.android.apps.maps");
+                    if (mapIntent.resolveActivity(activity.getPackageManager()) != null) {
+                        startActivity(mapIntent);
+                    }
+                }
             }
 
             @Override
