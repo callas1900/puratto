@@ -67,7 +67,7 @@ public class ViewerActivity extends AppCompatActivity {
                 Image image = images.get(position);
                 if (image.hasGeoData()) {
                     Log.d(TAG, image.getGeoData());
-                    Uri gmmIntentUri = Uri.parse(image.getGeoData() + "(test)");
+                    Uri gmmIntentUri = Uri.parse(String.format("%s(%s)", image.getGeoData(), image.getName()));
                     Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
                     mapIntent.setPackage("com.google.android.apps.maps");
                     if (mapIntent.resolveActivity(activity.getPackageManager()) != null) {
