@@ -12,8 +12,12 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -47,15 +51,40 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
         activity = this;
         progressBar = (ProgressBar) findViewById(R.id.progressBar);
         progressText = (TextView) findViewById(R.id.progressBar_text);
         setVisibility4Progress(View.GONE);
+        startWork();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater menuInflater = getMenuInflater();
+        menuInflater.inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_refresh:
+                startWork();
+                break;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+        return true;
+    }
+
+    private void startWork() {
         setupListView();
         progressText.setText("");
         startSearchLocation();
@@ -100,6 +129,11 @@ public class MainActivity extends AppCompatActivity {
                 new GetLocationFlickrTask(new Callback<PlacesList>() {
                     @Override
                     public void onFinished(PlacesList result) {
+                        if (result == null) {
+                            setVisibility4Progress(View.GONE);
+                            progressText.setText("Error");
+                            return;
+                        }
                         Iterator<Place> iterator = result.iterator();
                         adapter.clear();
                         while (iterator.hasNext()) {
