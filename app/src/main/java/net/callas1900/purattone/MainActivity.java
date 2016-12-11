@@ -9,9 +9,10 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -20,9 +21,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,7 +30,9 @@ import com.googlecode.flickrjandroid.places.PlacesList;
 
 import net.callas1900.purattone.flickr.GetLocationFlickrTask;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
@@ -43,9 +43,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
     private final static int PERMISSION_LOCATION_REQUEST_CODE = 7;
     private Activity activity = null;
-    private ArrayAdapter<Place> adapter = null;
     private ProgressBar progressBar;
     private TextView progressText;
+    private RecyclerView cardList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,26 +85,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startWork() {
-        setupListView();
+        setupCardView();
         progressText.setText("");
         startSearchLocation();
     }
 
-    private void setupListView() {
-        adapter = new PlaceAdapter(this, R.layout.activity_listview);
-        adapter.clear();
-        ListView listView = (ListView) findViewById(R.id.listview);
-        listView.setAdapter(adapter);
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                Place place = adapter.getItem(i);
-                Intent intent = new Intent(activity, ViewerActivity.class);
-                intent.putExtra(WOE_ID, place.getWoeId());
-                intent.putExtra(PLACE_ID, place.getPlaceId());
-                startActivity(intent);
-            }
-        });
+    private void setupCardView() {
+        if (cardList == null) {
+            cardList = (RecyclerView) findViewById(R.id.cardList);
+        }
+        if (cardList.getAdapter() != null) {
+            ((CardAdapter) cardList.getAdapter()).clearAll();
+        }
+        cardList.removeAllViews();
+        cardList.setHasFixedSize(true);
+        LinearLayoutManager llm = new LinearLayoutManager(activity);
+        llm.setOrientation(LinearLayoutManager.VERTICAL);
+        cardList.setLayoutManager(llm);
     }
 
     private void startSearchLocation() {
@@ -134,14 +131,9 @@ public class MainActivity extends AppCompatActivity {
                             progressText.setText("Error");
                             return;
                         }
-                        Iterator<Place> iterator = result.iterator();
-                        adapter.clear();
-                        while (iterator.hasNext()) {
-                            Place place = iterator.next();
-                            adapter.add(place);
-                        }
+                        CardAdapter cardAdapter = new CardAdapter(result);
                         setVisibility4Progress(View.GONE);
-                        adapter.notifyDataSetChanged();
+                        cardList.setAdapter(cardAdapter);
                     }
                 }, getString(R.string.flickr_api_key)).execute(loc);
             }
@@ -191,24 +183,80 @@ public class MainActivity extends AppCompatActivity {
         void onFinished(T result);
     }
 
-    /**
-     * ListView adapter.
-     */
-    public static class PlaceAdapter extends ArrayAdapter<Place> {
-        public PlaceAdapter(Context context, int resource) {
-            super(context, resource);
+    public static class CardViewHolder extends RecyclerView.ViewHolder {
+
+        protected TextView vTitle;
+        protected TextView vLatiLong;
+        private String placeId;
+        private String woeId;
+
+        public CardViewHolder(final View itemView) {
+            super(itemView);
+            vTitle = (TextView) itemView.findViewById(R.id.title);
+            vLatiLong = (TextView) itemView.findViewById(R.id.txtName);
+            itemView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    Intent intent = new Intent(itemView.getContext(), ViewerActivity.class);
+                    intent.putExtra(WOE_ID, woeId);
+                    intent.putExtra(PLACE_ID, placeId);
+                    itemView.getContext().startActivity(intent);
+                }
+            });
         }
 
-        @NonNull
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            Place place = getItem(position);
-            if (convertView == null) {
-                convertView = LayoutInflater.from(getContext()).inflate(R.layout.activity_listview, parent, false);
-            }
-            TextView textView = (TextView) convertView.findViewById(R.id.list_item);
-            textView.setText(place.getName());
-            return convertView;
+        public void setPlaceId(String placeId) {
+            this.placeId = placeId;
         }
+
+        public void setWoeId(String woeId) {
+            this.woeId = woeId;
+        }
+
+    }
+
+    public static class CardAdapter extends RecyclerView.Adapter<CardViewHolder> {
+
+        private List<Place> placeList;
+
+        public CardAdapter(PlacesList places) {
+            placeList = new ArrayList<>();
+            Iterator<Place> it = places.iterator();
+            while (it.hasNext()) {
+                Place place = it.next();
+                placeList.add(place);
+            }
+        }
+
+        @Override
+        public CardViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.card, parent, false);
+            return new CardViewHolder(itemView);
+        }
+
+        @Override
+        public void onBindViewHolder(CardViewHolder holder, int position) {
+            Place place = placeList.get(position);
+            holder.vTitle.setText(place.getName());
+            holder.vLatiLong.setText(place.getLatitude() + "," + place.getLongitude());
+            holder.setPlaceId(place.getPlaceId());
+            holder.setWoeId(place.getWoeId());
+        }
+
+        @Override
+        public int getItemCount() {
+            return placeList.size();
+        }
+
+        public void clearAll() {
+            int size = placeList.size();
+            if (placeList != null && size > 0) {
+                for (int i = 0; i < size; i++) {
+                    placeList.remove(0);
+                }
+                this.notifyItemRangeRemoved(0, size);
+            }
+        }
+
     }
 }
