@@ -9,8 +9,7 @@ public class Image implements Serializable {
     private String name;
     private String small, medium, large;
     private String timestamp;
-    private String geoData;
-    private boolean hasGeoData = false;
+    private String photoId;
 
     public Image() {
     }
@@ -63,16 +62,11 @@ public class Image implements Serializable {
         this.timestamp = timestamp;
     }
 
-    public String getGeoData() {
-        return geoData;
+    public void setPhotoId(String photoId) {
+        this.photoId = photoId;
     }
 
-    public void setGeoData(String geoData) {
-        this.geoData = geoData;
-        this.hasGeoData = true;
-    }
-
-    public boolean hasGeoData() {
-        return hasGeoData;
+    public String getPhotoId() {
+        return photoId;
     }
 }

@@ -2,6 +2,7 @@ package net.callas1900.purattone;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -14,7 +15,9 @@ import android.util.Log;
 import android.view.View;
 
 import net.callas1900.purattone.flickr.RetrieveFlickrTask;
+import net.callas1900.purattone.flickr.RetrievePhotoLocationFlickrTask;
 
+import com.googlecode.flickrjandroid.photos.GeoData;
 import com.googlecode.flickrjandroid.photos.Photo;
 import com.googlecode.flickrjandroid.photos.PhotoList;
 import com.googlecode.flickrjandroid.photos.SearchParameters;
@@ -58,16 +61,36 @@ public class ViewerActivity extends AppCompatActivity {
         recyclerView.addOnItemTouchListener(new GalleryAdapter.RecyclerTouchListener(getApplicationContext(), recyclerView, new GalleryAdapter.ClickListener() {
             @Override
             public void onClick(View view, int position) {
-                Image image = images.get(position);
-                if (image.hasGeoData()) {
-                    Log.d(TAG, image.getGeoData());
-                    Uri gmmIntentUri = Uri.parse(String.format("%s(%s)", image.getGeoData(), image.getName()));
-                    Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
-                    mapIntent.setPackage("com.google.android.apps.maps");
-                    if (mapIntent.resolveActivity(activity.getPackageManager()) != null) {
-                        startActivity(mapIntent);
+                pDialog.setMessage("show location data");
+                pDialog.setCancelable(false);
+                pDialog.show();
+                final Image image = images.get(position);
+                new RetrievePhotoLocationFlickrTask(new RetrievePhotoLocationFlickrTask.Callback<GeoData>() {
+                    @Override
+                    public void onFinished(GeoData result) {
+                        pDialog.hide();
+                        if (result == null) {
+                            Log.e(TAG, "geo data is null");
+                            return;
+                        }
+                        StringBuilder builder = new StringBuilder();
+                        builder.append("geo:")
+                                .append(result.getLatitude())
+                                .append(",")
+                                .append(result.getLongitude())
+                                .append("?q=")
+                                .append(result.getLatitude())
+                                .append(",")
+                                .append(result.getLongitude());
+
+                        Uri gmmIntentUri = Uri.parse(String.format("%s(%s)", builder.toString(), image.getName()));
+                        Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+                        mapIntent.setPackage("com.google.android.apps.maps");
+                        if (mapIntent.resolveActivity(activity.getPackageManager()) != null) {
+                            startActivity(mapIntent);
+                        }
                     }
-                }
+                }, getString(R.string.flickr_api_key)).execute(image.getPhotoId());
             }
 
             @Override
@@ -120,20 +143,7 @@ public class ViewerActivity extends AppCompatActivity {
                     image.setSmall(photo.getSmallSquareUrl());
                     image.setMedium(photo.getMediumUrl());
                     image.setLarge(photo.getLarge1600Url());
-                    if (photo.hasGeoData()) {
-                        StringBuilder builder = new StringBuilder();
-                        builder.append("geo:")
-                                .append(photo.getGeoData().getLatitude())
-                                .append(",")
-                                .append(photo.getGeoData().getLongitude())
-                                .append("?q=")
-                                .append(photo.getGeoData().getLatitude())
-                                .append(",")
-                                .append(photo.getGeoData().getLongitude());
-                        image.setGeoData(builder.toString());
-                    } else {
-                        Log.d(TAG, "geo is null");
-                    }
+                    image.setPhotoId(photo.getId());
                     images.add(image);
                 }
                 pDialog.hide();

@@ -17,6 +17,7 @@ import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+
 import net.callas1900.purattone.R;
 
 import java.util.ArrayList;
@@ -130,15 +131,6 @@ public class SlideshowDialogFragment extends DialogFragment {
             imageViewPreview.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    if (image.hasGeoData()) {
-                        Log.d(TAG, image.getGeoData());
-                        Uri gmmIntentUri = Uri.parse(image.getGeoData() + "(test)");
-                        Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
-                        mapIntent.setPackage("com.google.android.apps.maps");
-                        if (mapIntent.resolveActivity(activity.getPackageManager()) != null) {
-                            startActivity(mapIntent);
-                        }
-                    }
                 }
             });
 

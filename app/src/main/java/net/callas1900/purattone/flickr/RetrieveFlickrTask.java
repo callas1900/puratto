@@ -51,16 +51,7 @@ public class RetrieveFlickrTask extends FlickrTask<SearchParameters, Integer, Ph
         Flickr flickr = getFlickr(apiKey);
         PhotoList photos = new PhotoList();
         try {
-            PhotoList tmpPhotos = flickr.getPhotosInterface().search(parameters[0], 10, targetPage);
-            Iterator<Photo> it = tmpPhotos.iterator();
-            while (it.hasNext()) {
-                Photo photo = it.next();
-                GeoData geoData = flickr.getPhotosInterface().getGeoInterface().getLocation(photo.getId());
-                if (geoData != null) {
-                    photo.setGeoData(geoData);
-                }
-                photos.add(photo);
-            }
+            photos = flickr.getPhotosInterface().search(parameters[0], 10, targetPage);
         } catch (IOException e) {
             Log.e(TAG, "", e);
         } catch (FlickrException e) {
