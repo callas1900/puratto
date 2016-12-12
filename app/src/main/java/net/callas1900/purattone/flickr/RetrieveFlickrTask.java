@@ -28,10 +28,18 @@ public class RetrieveFlickrTask extends FlickrTask<SearchParameters, Integer, Ph
     private final static String TAG = RetrieveFlickrTask.class.getSimpleName();
     private final Callback<PhotoList> callback;
     private final String apiKey;
+    private final int targetPage;
 
     public RetrieveFlickrTask(Callback<PhotoList> callback, String apiKey) {
         this.callback = callback;
         this.apiKey = apiKey;
+        this.targetPage = 1;
+    }
+
+    public RetrieveFlickrTask(Callback<PhotoList> callback, String apiKey, int  targetPage) {
+        this.callback = callback;
+        this.apiKey = apiKey;
+        this.targetPage = targetPage;
     }
 
     @Override
@@ -39,10 +47,11 @@ public class RetrieveFlickrTask extends FlickrTask<SearchParameters, Integer, Ph
         if (parameters.length != 1) {
             return null;
         }
+        Log.d(TAG, "targetPage => " + targetPage);
         Flickr flickr = getFlickr(apiKey);
         PhotoList photos = new PhotoList();
         try {
-            PhotoList tmpPhotos = flickr.getPhotosInterface().search(parameters[0], 20, 1);
+            PhotoList tmpPhotos = flickr.getPhotosInterface().search(parameters[0], 10, targetPage);
             Iterator<Photo> it = tmpPhotos.iterator();
             while (it.hasNext()) {
                 Photo photo = it.next();

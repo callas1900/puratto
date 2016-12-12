@@ -14,6 +14,7 @@ import android.util.Log;
 import android.view.View;
 
 import net.callas1900.purattone.flickr.RetrieveFlickrTask;
+
 import com.googlecode.flickrjandroid.photos.Photo;
 import com.googlecode.flickrjandroid.photos.PhotoList;
 import com.googlecode.flickrjandroid.photos.SearchParameters;
@@ -35,6 +36,7 @@ public class ViewerActivity extends AppCompatActivity {
     private GalleryAdapter mAdapter;
     private RecyclerView recyclerView;
     private Activity activity;
+    private int nextPage = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,14 +58,6 @@ public class ViewerActivity extends AppCompatActivity {
         recyclerView.addOnItemTouchListener(new GalleryAdapter.RecyclerTouchListener(getApplicationContext(), recyclerView, new GalleryAdapter.ClickListener() {
             @Override
             public void onClick(View view, int position) {
-//                Bundle bundle = new Bundle();
-//                bundle.putSerializable("images", images);
-//                bundle.putInt("position", position);
-//
-//                FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
-//                SlideshowDialogFragment newFragment = SlideshowDialogFragment.newInstance();
-//                newFragment.setArguments(bundle);
-//                newFragment.show(ft, "slideshow");
                 Image image = images.get(position);
                 if (image.hasGeoData()) {
                     Log.d(TAG, image.getGeoData());
@@ -82,10 +76,25 @@ public class ViewerActivity extends AppCompatActivity {
             }
         }));
 
-        fetchImages(getIntent().getExtras());
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                GridLayoutManager manager = (GridLayoutManager) recyclerView.getLayoutManager();
+
+                if (dy < 0) {
+                    return;
+                }
+                if (manager.getItemCount() - 1 == manager.findLastCompletelyVisibleItemPosition()) {
+                    Log.d(TAG, " Bottom ");
+                    fetchImages(getIntent().getExtras(), false);
+                }
+            }
+        });
+        initNextPage();
+        fetchImages(getIntent().getExtras(), true);
     }
 
-    private void fetchImages(Bundle extras) {
+    private void fetchImages(Bundle extras, final boolean clearImages) {
 
         SearchParameters parameters = new SearchParameters();
         if (extras != null && extras.containsKey(WOE_ID) && extras.containsKey(PLACE_ID)) {
@@ -96,11 +105,14 @@ public class ViewerActivity extends AppCompatActivity {
         parameters.setSort(SearchParameters.INTERESTINGNESS_DESC);
 
         pDialog.setMessage("Connecting Flickr...");
+        pDialog.setCancelable(false);
         pDialog.show();
         new RetrieveFlickrTask(new Callback<PhotoList>() {
             @Override
             public void onFinished(PhotoList result) {
-                images.clear();
+                if (clearImages) {
+                    images.clear();
+                }
                 Photo p[] = new Photo[result.getPerPage()];
                 for (Photo photo : result.toArray(p)) {
                     Image image = new Image();
@@ -127,7 +139,15 @@ public class ViewerActivity extends AppCompatActivity {
                 pDialog.hide();
                 mAdapter.notifyDataSetChanged();
             }
-        }, getString(R.string.flickr_api_key)).execute(parameters);
+        }, getString(R.string.flickr_api_key), getNextPage()).execute(parameters);
+    }
+
+    private int getNextPage() {
+        return nextPage++;
+    }
+
+    private void initNextPage() {
+        nextPage = 1;
     }
 
     /**
